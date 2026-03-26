@@ -1,0 +1,217 @@
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\title{Beyond Akerlof: An Agent-Based Interpretation of Steinbeck’s Market for Lemons}
+\author{ChatGPT}
+\date{\today}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We extend the canonical lemons framework by embedding it in an agent-based environment with forced demand, local market power, price discrimination, and institutional frictions. We show that adverse outcomes may arise even when information asymmetry alone would not predict collapse. Analytical conditions and computational experiments jointly characterize regimes of market breakdown and recovery.
+\end{abstract}
+
+\section{Introduction}
+
+Akerlof (1970) shows how asymmetric information drives adverse selection. However, narrative evidence suggests richer mechanisms: buyers may be constrained and vulnerable, while sellers exert localized power and discriminate prices.
+
+We develop an agent-based model (ABM) that integrates these elements and derive analytical conditions for market collapse.
+
+\section{Conceptual Extensions}
+
+We extend the standard lemons model along four dimensions:
+
+\begin{itemize}
+    \item Forced demand ($\delta$): buyers accept lower quality under pressure
+    \item Local market power ($\gamma$)
+    \item Price discrimination ($\beta$)
+    \item Institutional strength ($\iota$)
+\end{itemize}
+
+\section{Formal Structure}
+
+\subsection{Agents}
+
+Buyers $i=1,\dots,N_B$:
+\[
+B_i \sim F_B, \quad \bar{q}_i \sim F_q, \quad v_i \in [0,1]
+\]
+
+Sellers $j=1,\dots,N_S$:
+\[
+q \sim F_Q, \quad \text{inventory finite}
+\]
+
+\subsection{Pricing Rule}
+
+\[
+p = \alpha q + \beta v_i + \gamma m
+\]
+
+where $m$ captures local market power.
+
+\subsection{Acceptance Condition}
+
+A trade occurs if:
+\[
+p \leq B_i \quad \text{and} \quad q \geq \bar{q}_i (1 - \delta)
+\]
+
+\subsection{Expected Surplus}
+
+Buyer surplus:
+\[
+S_i = q - p
+\]
+
+\section{Analytical Insights}
+
+\subsection{Expected Trade Condition}
+
+Let $\mathbb{E}[q]$ denote expected quality and $\mathbb{E}[v]$ expected vulnerability.
+
+\begin{proposition}[Trade Feasibility]
+Trade occurs with positive probability if:
+\[
+\mathbb{E}[B] \geq \alpha \mathbb{E}[q] + \beta \mathbb{E}[v] + \gamma m
+\]
+\end{proposition}
+
+\subsection{Market Collapse Condition}
+
+\begin{proposition}[Collapse Threshold]
+If:
+\[
+\beta \mathbb{E}[v] + \gamma m > \mathbb{E}[B] - \alpha \mathbb{E}[q]
+\]
+then the probability of trade converges to zero.
+\end{proposition}
+
+\subsection{Quality Degradation}
+
+\begin{proposition}[Endogenous Lemons Dynamics]
+If low-quality goods yield higher expected margins due to $\beta > 0$, then:
+\[
+\frac{d \mathbb{E}[q]}{dt} < 0
+\]
+in absence of institutional correction.
+\end{proposition}
+
+\begin{remark}
+Unlike Akerlof, collapse here can arise even with moderate information asymmetry if $\beta$ and $\gamma$ are sufficiently large.
+\end{remark}
+
+\section{Computational Design}
+
+We simulate:
+
+\begin{itemize}
+    \item $N_B = 200$ buyers
+    \item $N_S = 25$ sellers
+    \item multiple periods
+    \item stochastic matching
+\end{itemize}
+
+\section{Results}
+
+\subsection{Baseline vs Extended Model}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/quality_over_time.pdf}
+\caption{Average quality over time across scenarios}
+\end{figure}
+
+\subsection{Price and Lemons Share}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/lemons_share.pdf}
+\caption{Share of lemons sold}
+\end{figure}
+
+\subsection{Institutional Intervention}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/institutions_effect.pdf}
+\caption{Impact of inspections and standards}
+\end{figure}
+
+\section{Discussion}
+
+The results show that:
+
+\begin{itemize}
+    \item vulnerability amplifies adverse selection;
+    \item local power distorts pricing;
+    \item institutional mechanisms can restore efficiency.
+\end{itemize}
+
+\section{Conclusion}
+
+Market failure emerges from the interaction of informational, structural, and institutional factors. ABM provides a natural framework to study these interactions.
+
+\appendix
+
+\section{Computational Appendix}
+
+\subsection{Pseudo-Code}
+
+\begin{verbatim}
+Initialize buyers and sellers
+
+For each period:
+    Shuffle buyers
+    For each buyer:
+        Select seller
+        If seller has inventory:
+            Draw car
+            Compute price
+            If acceptance condition:
+                Execute trade
+                Update inventories
+Record statistics
+\end{verbatim}
+
+\subsection{Mapping to Python Implementation}
+
+\begin{itemize}
+    \item Buyers $\rightarrow$ class Buyer
+    \item Sellers $\rightarrow$ class Seller
+    \item Market $\rightarrow$ UsedCarMarketABM
+    \item Step dynamics $\rightarrow$ step()
+    \item Simulation loop $\rightarrow$ run()
+\end{itemize}
+
+\subsection{Reproducibility}
+
+\begin{itemize}
+    \item Random seed fixed
+    \item Parameters documented in notebook
+    \item Code available as Jupyter notebook
+\end{itemize}
+
+\section*{References}
+
+Akerlof, G. A. (1970). The Market for ``Lemons''. \textit{Quarterly Journal of Economics}.
+
+\end{document}
