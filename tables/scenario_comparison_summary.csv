@@ -1,0 +1,5 @@
+scenario,weeks,total_trades,mean_weekly_trades,mean_lemon_share,mean_avg_quality,mean_avg_price,mean_buyer_surplus,mean_seller_revenue,blocked_sales_total
+akerlof_only,52,11020,211.9231,0.6653,0.4567,62.6319,58.0548,62.4178,186
+steinbeck_distress,52,10806,207.8077,0.6269,0.4781,121.8006,54.9106,121.6922,107
+institutional_correction,52,10182,195.8077,0.6022,0.4991,124.9737,54.146,114.6282,786
+more_competition,52,11859,228.0577,0.6551,0.4597,75.1752,67.0887,75.1081,140

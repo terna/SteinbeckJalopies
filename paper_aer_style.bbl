@@ -1,0 +1,23 @@
+\ifx\undefined\bysame
+\newcommand{\bysame}{\leavevmode\hbox to\leftmargin{\hrulefill\,\,}}
+\fi
+\begin{thebibliography}{xx}
+
+\harvarditem[Akerlof]{Akerlof}{1970}{akerlof1970}
+{\bf Akerlof, George~A.}, ``The Market for `Lemons': Quality Uncertainty and
+  the Market Mechanism,'' {\it Quarterly Journal of Economics}, 1970, {\it 84}
+  (3), 488--500.
+
+\harvarditem[DeLucia]{DeLucia}{2014}{delucia2014}
+{\bf DeLucia, Joana}, ``Positioning Steinbeck's Automobiles: Class and Cars in
+  The Grapes of Wrath,'' {\it Steinbeck Review}, 2014, {\it 11} (2), 138--154.
+
+\harvarditem[Dickstein]{Dickstein}{2004}{dickstein2004}
+{\bf Dickstein, Morris}, ``Steinbeck and the Great Depression,'' {\it South
+  Atlantic Quarterly}, 2004, {\it 103} (1), 111--131.
+
+\harvarditem[Dyen]{Dyen}{2010}{dyen2010}
+{\bf Dyen, Jeffrey}, ````I Never Saw Such People'': Reading Steinbeck in the
+  Great Recession,'' {\it English Text Construction}, 2010, {\it 3} (1), 1--21.
+
+\end{thebibliography}

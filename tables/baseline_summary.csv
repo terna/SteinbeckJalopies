@@ -1,0 +1,2 @@
+scenario,weeks,total_trades,mean_weekly_trades,mean_lemon_share,mean_avg_quality,mean_avg_price,mean_buyer_surplus,mean_seller_revenue,blocked_sales_total
+baseline,52,10728,206.30769230769232,0.6233274710025302,0.48014822791952333,101.67754316668955,58.806974443713706,101.34655773695994,173

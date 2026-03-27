@@ -1,0 +1,87 @@
+Hai sviluppato per me un modello ABM su Axelrod-Steinbeck makert for lemons or jalopies, ma siamo andati troppo avanti con le varianti e non mi ritrovo più e direi neanche tu.
+Come ragionamento di partenza considera il file 'Steinbeck e i lemons2.doc' allegato.
+
+Tu avevi proposto:
+
+Steinbeck, Akerlof e il mercato delle auto usate
+Un notebook agent-based “pubblicabile” per Jupyter
+Questo notebook costruisce un modello agent-based (ABM) per ragionare intorno al testo su Steinbeck e i lemons.
+L'idea di fondo è distinguere fra:
+spiegazione Akerlof-standard: eterogeneità qualitativa + asimmetria informativa;
+spiegazione Steinbeck-estesa: oltre all'asimmetria, contano anche
+domanda costretta,
+vulnerabilità socio-antropologica dei compratori,
+potere locale / monopolistico dell'offerta,
+opportunismo di one-shot transactions,
+discriminazione di prezzo,
+debolezza o assenza di istituzioni correttive.
+Il notebook è pensato per essere:
+leggibile in Jupyter,
+facilmente pubblicabile via Voilà / Binder / GitHub,
+modificabile per esperimenti ulteriori.
+
+Avevi scritto nel file per Jupiter
+1. Fondamento teorico
+Nel testo di partenza si sostiene che la situazione non può essere spiegata solo con un eccesso di domanda: un eccesso di domanda può far salire temporaneamente i prezzi, ma non basta a spiegare perché diventi conveniente vendere sistematicamente beni di bassa qualità.
+La lettura canonica è quella di Akerlof (1970): quando il venditore conosce la qualità del bene meglio del compratore, il prezzo tende a riflettere una qualità media attesa; i venditori dei beni migliori si ritirano, e sul mercato restano soprattutto i “lemons”.
+
+Ma il caso Steinbeckiano aggiunge elementi ulteriori:
+
+i compratori sono scarsamente informati non solo sulla qualità del bene, ma anche sulle regole pratiche del mercato;
+la domanda è spesso urgente, costretta, senza rinvio;
+l'incontro tra domanda e offerta è spesso unico, quindi aumenta l'incentivo opportunistico;
+i venditori operano talvolta in condizioni di potere locale, quasi monopolistico o collusivo;
+il prezzo può essere personalizzato sfruttando vulnerabilità e urgenza;
+le istituzioni che potrebbero disciplinare il mercato possono essere deboli o assenti.
+Perciò il modello qui sotto non è soltanto un Akerlof “tradotto in simulazione”, ma un piccolo laboratorio per distinguere:
+
+fallimento informativo puro,
+fallimento informativo + potere di mercato + vulnerabilità sociale,
+correzione istituzionale parziale.
+
+. Struttura del modello
+Gli agenti sono due:
+
+Compratori
+Ogni compratore ha:
+
+un budget,
+un grado di urgenza (need),
+un livello di alfabetizzazione di mercato (market literacy),
+una tolleranza al rischio,
+una vulnerabilità socio-antropologica sintetica.
+Venditori
+Ogni venditore possiede:
+
+una o più auto,
+un mark-up di base,
+una propensione opportunistica,
+una capacità di discriminazione di prezzo.
+Auto
+Ogni auto ha:
+
+qualità reale,
+costo del venditore,
+bandiera good / lemon.
+Istituzioni
+Le istituzioni agiscono in modo ridotto ma utile:
+
+ispezioni casuali,
+standard minimi di qualità,
+riduzione della possibilità di sovrapprezzo,
+uscita dal mercato di alcune auto molto scadenti.
+Il modello è deliberatamente semplice e trasparente, così da essere usato come notebook didattico, esplorativo e pubblicabile online.
+
+Servono degli slider per rendere variabili i parametri degli agenti e soprattuttp il numero degli agenti, anche molti dal lato buyers.
+
+Gestisci il tempo del modello, in settimana, esempio per un anno.
+Salva le figure in una cartella figures dove possano essere lette da un file LaTeX con un articolo che presenta il modello.
+Prepara delle tabelle comparative nel modello e salvale in una cartella tables
+
+Prepara il modello in Python e mettilo in un file Jupyter
+
+Prepara il file LaTeX anche usando quelle figure e le tavole comparative.
+
+Scrivi sempre solo in inglese.
+
+prepara anche requirements.txt
