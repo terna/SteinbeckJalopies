@@ -1,0 +1,170 @@
+Sì, è una buona idea. Nel modello attuale i compratori sono troppo atomizzati: ciascuno decide solo in base a budget e soglia di qualità. Questo rende la dinamica abbastanza lineare e, come dici tu, prevedibile.
+
+L’imitazione tra compratori può introdurre complessità in modo naturale, perché aggiunge interdipendenza sociale sul lato della domanda. In pratica, il buyer non reagisce solo all’auto che vede, ma anche a ciò che osserva fare agli altri.
+
+Le forme più utili di imitazione, nel tuo caso, sono tre.
+
+1. Imitazione della tolleranza alla qualità
+
+Un compratore vede che altri stanno accettando auto peggiori del previsto e abbassa a sua volta il proprio standard.
+
+Formalmente, invece di avere una soglia quasi fissa:
+
+q >= b.min_quality * 0.8
+
+potresti avere una soglia sociale:
+
+effective_min_quality = (
+    (1 - social_weight) * b.min_quality
+    + social_weight * observed_average_accepted_quality
+)
+
+oppure, meglio ancora, una forma adattiva:
+
+b.social_min_quality = (
+    (1 - lambda_imitation) * b.social_min_quality
+    + lambda_imitation * observed_average_accepted_quality
+)
+
+Economicamente questo significa che la norma di accettabilità non è individuale e stabile, ma si sposta endogenamente. È interessante perché può generare una discesa cumulativa degli standard.
+
+2. Imitazione della propensione a comprare subito
+
+Il buyer può osservare che “gli altri comprano” e diventare più impaziente. Quindi non imita tanto la qualità, ma l’urgenza.
+
+Per esempio, puoi introdurre una variabile urgency:
+
+b.urgency
+
+che cresce quando nel periodo precedente molti hanno acquistato:
+
+b.urgency = min(
+    1.0,
+    b.urgency + lambda_imitation * previous_purchase_rate
+)
+
+e poi far entrare questa urgenza nella regola di accettazione:
+
+quality_tolerance = 0.8 - 0.2 * b.urgency
+
+oppure nel prezzo massimo accettabile:
+
+effective_budget = b.budget * (1 + 0.1 * b.urgency)
+
+Questo introduce una dinamica di tipo rush / contagio, molto plausibile in mercati percepiti come scarsi.
+
+3. Imitazione reputazionale dei venditori
+
+I buyers possono convergere sugli stessi sellers perché vedono che “da quel venditore comprano tutti”.
+
+Quindi il matching non è più uniforme casuale, ma socialmente distorto. Per esempio, ogni seller può avere un punteggio di attrattività:
+
+seller.popularity
+
+aggiornato con il numero recente di vendite. Poi il buyer sceglie il seller con probabilità proporzionale a:
+
+exp(kappa * popularity)
+
+Questa modifica è potente perché può generare:
+	•	concentrazione della domanda,
+	•	path dependence,
+	•	successo cumulativo,
+	•	anche bolle reputazionali su venditori non necessariamente migliori.
+
+⸻
+
+Quale forma sceglierei per prima
+
+Per il tuo modello, la più interessante è la prima: imitazione della soglia di qualità.
+
+Perché:
+	•	è semplice da implementare;
+	•	è teoricamente leggibile;
+	•	resta molto coerente col tema “lemons”;
+	•	può produrre effetti non banali anche senza complicare troppo il codice.
+
+In sostanza, passi da:
+	•	buyers con standard dati,
+
+a:
+	•	buyers che apprendono socialmente cosa è “accettabile”.
+
+Questo può generare due regimi molto diversi:
+	•	con imitazione debole, gli standard restano abbastanza stabili;
+	•	con imitazione forte, gli standard collassano e il mercato si adatta verso il basso.
+
+⸻
+
+Come lo implementerei in modo pulito
+
+Aggiungerei in Params:
+
+imitation_strength: float = 0.0
+memory_weight: float = 0.7
+
+Poi in Buyer:
+
+self.base_min_quality = np.random.uniform(0.3, 0.7)
+self.min_quality = self.base_min_quality
+
+Alla fine di ogni periodo, nel Market.step(), calcoli la qualità media delle auto effettivamente acquistate:
+
+observed_avg_quality
+
+e aggiorni i buyers non ancora serviti:
+
+for b in self.buyers:
+    if not b.purchased:
+        b.min_quality = (
+            (1 - self.p.imitation_strength) * b.base_min_quality
+            + self.p.imitation_strength * observed_avg_quality
+        )
+
+Questa è la versione più semplice. Una versione migliore usa memoria:
+
+b.min_quality = (
+    self.p.memory_weight * b.min_quality
+    + (1 - self.p.memory_weight) * (
+        (1 - self.p.imitation_strength) * b.base_min_quality
+        + self.p.imitation_strength * observed_avg_quality
+    )
+)
+
+Così non c’è salto brusco, ma adattamento graduale.
+
+⸻
+
+Che cosa aggiunge dal punto di vista economico
+
+Aggiunge un meccanismo di norm formation o social learning. Il mercato non è più guidato solo da prezzi e qualità, ma anche da ciò che i compratori imparano gli uni dagli altri.
+
+Questo può produrre:
+	•	isteresi,
+	•	dipendenza dal percorso,
+	•	soglie critiche,
+	•	regimi multipli.
+
+Ed è esattamente il tipo di cosa che rende un ABM meno prevedibile e più interessante.
+
+⸻
+
+Attenzione
+
+L’imitazione può anche migliorare il mercato, non solo peggiorarlo. Se le istituzioni filtrano bene e i primi scambi sono di qualità alta, i compratori possono imitare standard elevati. Quindi l’imitazione interagisce fortemente con institution_strength.
+
+Questo è ottimo, perché introduce una vera complementarità:
+	•	istituzioni forti + imitazione = possibile coordinamento “virtuoso”;
+	•	istituzioni deboli + imitazione = possibile spirale verso il basso.
+
+⸻
+
+La modifica minima che consiglio
+
+Se vuoi tenere il modello leggibile, farei solo questo:
+	•	aggiungere imitation_strength in Params;
+	•	far aggiornare min_quality dei buyers rimasti in base alla qualità media osservata nel periodo precedente;
+	•	aggiungere un terzo grafico: qualità soglia media dei buyers nel tempo.
+
+Quello ti direbbe non solo come evolve il mercato, ma come evolve la cultura della domanda.
+
+Se vuoi, nel prossimo messaggio ti scrivo esattamente la patch del notebook, in modo molto pulito, con le celle da sostituire.

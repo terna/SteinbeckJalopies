@@ -1,0 +1,750 @@
+Certo. Faccio una seconda lettura, più didattica: per ogni cella ti dico
+	•	che cosa fa,
+	•	perché è scritta così in Python,
+	•	quali sono i punti un po’ delicati,
+	•	come la potresti modificare.
+
+⸻
+
+Cella 1 — titolo e tempo
+
+# Steinbeck Lemons ABM
+
+1 period = 1 market week
+
+Che cosa fa
+
+Definisce il notebook e fissa il significato del tempo.
+
+Perché è scritta così
+
+In un notebook è bene dichiarare subito l’unità temporale, perché poi tutte le serie storiche dipendono da questo.
+
+Punto delicato
+
+Se nel codice tratti i periodi come settimane ma nel paper li interpreti come mesi, nasce incoerenza. Qui invece la convenzione è esplicita.
+
+Come potresti modificarla
+
+Potresti scrivere, per esempio:
+
+1 period = 1 trading week in the used-car market
+
+se vuoi una formulazione più “paper-like”.
+
+⸻
+
+Cella 2 — import
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from dataclasses import dataclass
+from pathlib import Path
+import ipywidgets as widgets
+from IPython.display import display
+
+Che cosa fa
+
+Carica tutte le librerie.
+
+Perché è scritta così
+
+È la forma standard: dai alias brevi e riconoscibili.
+	•	np per NumPy
+	•	pd per Pandas
+	•	plt per Matplotlib
+
+Questa convenzione è praticamente universale in Python scientifico.
+
+Punto delicato
+
+Se una libreria non è installata, l’errore appare subito qui. È meglio così: fallisce all’inizio, non a metà notebook.
+
+Come potresti modificarla
+
+Per replicabilità, potresti aggiungere subito dopo:
+
+np.random.seed(42)
+
+così tutte le estrazioni casuali diventano riproducibili.
+
+⸻
+
+Cella 3 — cartella figure e funzione di salvataggio
+
+FIG_DIR = Path('./figures')
+FIG_DIR.mkdir(exist_ok=True)
+
+def save_fig(fig, name):
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / f"{name}.pdf")
+    fig.savefig(FIG_DIR / f"{name}.png", dpi=300)
+    print(f"Saved {name}")
+
+Che cosa fa
+
+Prepara la directory di output e definisce una piccola utility per salvare i grafici.
+
+Perché è scritta così
+
+Qui c’è una buona pratica importante: separare la logica del modello dalla logica di esportazione.
+
+Invece di scrivere ogni volta:
+
+fig.savefig(...)
+fig.savefig(...)
+
+usi una funzione dedicata.
+
+Questo riduce gli errori e rende il notebook più pulito.
+
+Punto delicato 1 — Path
+
+Path('./figures') è preferibile a stringhe tipo "./figures" perché è più robusto e leggibile nella gestione dei percorsi.
+
+Punto delicato 2 — fig.savefig, non plt.savefig
+
+Questo è cruciale. Se usi plt.savefig, a volte salvi la figura “corrente”, che non sempre è quella che pensi. Con fig.savefig salvi esattamente la figura che hai creato.
+
+Punto delicato 3 — tight_layout()
+
+È utile, ma in figure molto complesse a volte sposta troppo. In questo notebook semplice va bene.
+
+Come potresti modificarla
+
+Versione un po’ più robusta:
+
+def save_fig(fig, name):
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / f"{name}.pdf", bbox_inches="tight")
+    fig.savefig(FIG_DIR / f"{name}.png", dpi=300, bbox_inches="tight")
+    print(f"Saved {name}")
+
+bbox_inches="tight" aiuta a evitare margini strani.
+
+⸻
+
+Cella 4 — Params
+
+@dataclass
+class Params:
+    n_buyers: int = 200
+    n_sellers: int = 25
+    periods: int = 52
+    institution_strength: float = 0.3
+    min_quality: float = 0.5
+
+Che cosa fa
+
+Raccoglie i parametri strutturali del modello.
+
+Perché è scritta così
+
+@dataclass è perfetto per una classe che contiene dati e quasi nessuna logica. Evita di dover scrivere a mano __init__.
+
+Punto delicato 1 — ordine dei campi
+
+Quando poi costruisci Params(...) senza nomi, l’ordine conta. Per esempio:
+
+Params(n_buyers.value, n_sellers.value, periods.value)
+
+riempie i primi tre campi in ordine.
+
+Questo funziona, ma è un po’ fragile.
+
+Come la scriverei meglio
+
+Meglio passare i nomi:
+
+p = Params(
+    n_buyers=n_buyers.value,
+    n_sellers=n_sellers.value,
+    periods=periods.value
+)
+
+Così il codice è più leggibile e meno soggetto a errori se cambi l’ordine dei campi.
+
+Punto delicato 2 — parametri fissi e slider
+
+Qui solo tre parametri sono controllati dagli slider; institution_strength e min_quality restano fissi.
+
+Non è un problema, ma va capito: non tutto è interattivo.
+
+Come potresti modificarla
+
+Potresti aggiungere:
+
+price_noise_max: float = 40
+inventory_per_seller: int = 8
+
+se vuoi rendere più modulare anche la struttura dei prezzi e dello stock.
+
+⸻
+
+Cella 5 — Buyer e Seller
+
+class Buyer:
+    def __init__(self):
+        self.budget = np.clip(np.random.normal(95, 20), 30, 190)
+        self.min_quality = np.random.uniform(0.3, 0.7)
+        self.purchased = False
+
+class Seller:
+    def __init__(self):
+        self.inventory = list(np.random.uniform(0,1,8))
+
+Che cosa fa
+
+Costruisce i due tipi di agenti.
+
+⸻
+
+Buyer
+
+budget
+
+np.clip(np.random.normal(95, 20), 30, 190)
+
+Genera un budget casuale.
+
+Perché è scritta così
+
+La normale è naturale per rappresentare una popolazione con centro e dispersione. clip impedisce valori estremi o negativi.
+
+Punto delicato
+
+clip non è una vera distribuzione troncata: schiaccia i valori troppo bassi a 30 e quelli troppo alti a 190. Questo crea accumulo sui bordi.
+
+Per un modello semplice va bene. Per un paper molto rigoroso potresti usare una truncated normal vera.
+
+⸻
+
+min_quality
+
+np.random.uniform(0.3, 0.7)
+
+Perché è scritta così
+
+È una scelta molto semplice: i compratori hanno standard eterogenei, ma senza introdurre complicazioni inutili.
+
+Punto delicato
+
+Uniforme significa che tutti i valori tra 0.3 e 0.7 sono equiprobabili. Se vuoi un mondo con molti compratori medi e pochi estremi, useresti una distribuzione diversa.
+
+⸻
+
+purchased = False
+
+Perché è scritta così
+
+È il flag di stato minimo indispensabile: dice se il buyer è ancora attivo.
+
+Punto delicato
+
+Il buyer non registra:
+	•	quanto ha pagato,
+	•	che qualità ha ricevuto,
+	•	il suo surplus.
+
+Per ora il modello è volutamente essenziale.
+
+⸻
+
+Seller
+
+inventory = list(np.random.uniform(0,1,8))
+
+Perché è scritta così
+
+Ogni venditore ha 8 auto, ciascuna con qualità casuale.
+
+Punto delicato 1
+
+np.random.uniform(0,1,8) restituisce un array NumPy. Lo converti in lista perché poi usi .pop(), che è un’operazione naturale su liste Python.
+
+Punto delicato 2
+
+Tutti i sellers sono identici all’inizio: stessa numerosità dello stock, stessa distribuzione delle qualità.
+
+Se volessi eterogeneità tra venditori, potresti differenziare numero di auto o qualità media.
+
+⸻
+
+Cella 6 — Market
+
+Questa è la cella più importante.
+
+Parte iniziale
+
+class Market:
+    def __init__(self, p):
+        self.p = p
+        self.buyers = [Buyer() for _ in range(p.n_buyers)]
+        self.sellers = [Seller() for _ in range(p.n_sellers)]
+        self.history = []
+
+Perché è scritta così
+
+La classe Market è il contenitore dello stato complessivo:
+	•	parametri,
+	•	agenti,
+	•	storia.
+
+Punto delicato
+
+Qui i buyers e sellers vengono creati tutti subito, all’inizio. Non entrano nuovi agenti nel tempo.
+
+Questo significa che il mercato è un sistema a stock finito.
+
+⸻
+
+Metodo step
+
+def step(self, t):
+    trades, quality_sum, lemons = 0, 0, 0
+
+Perché è scritta così
+
+Ogni periodo riparte con contatori azzerati.
+
+Punto delicato
+
+quality_sum e lemons sono aggregati molto semplici. Bastano per due grafici, ma non per un’analisi più ricca.
+
+⸻
+
+Blocco istituzionale
+
+for s in self.sellers:
+    s.inventory = [q for q in s.inventory if not (
+        np.random.rand() < self.p.institution_strength and q < self.p.min_quality
+    )]
+
+Perché è scritta così
+
+È una list comprehension che ricostruisce l’inventario tenendo solo le auto che sopravvivono al filtro.
+
+Logica
+
+Un’auto viene eliminata se valgono insieme:
+	•	viene ispezionata,
+	•	è sotto la soglia di qualità.
+
+Punto delicato 1 — probabilità indipendente per auto
+
+Ogni auto viene trattata separatamente. Questa è una scelta precisa: l’istituzione colpisce beni, non venditori.
+
+Punto delicato 2 — ricostruzione della lista
+
+Non stai rimuovendo elementi “in place” mentre iteri, che in Python può creare bug. Stai creando una nuova lista pulita. È una buona scelta.
+
+Come potresti modificarla
+
+Se vuoi misurare quante auto sono state rimosse, potresti fare:
+
+new_inventory = []
+blocked = 0
+for q in s.inventory:
+    if np.random.rand() < self.p.institution_strength and q < self.p.min_quality:
+        blocked += 1
+    else:
+        new_inventory.append(q)
+s.inventory = new_inventory
+
+Così registri anche l’intensità del filtro.
+
+⸻
+
+Loop sui buyers
+
+for b in self.buyers:
+    if b.purchased:
+        continue
+
+Perché è scritta così
+
+continue è il modo più semplice per saltare i buyers già serviti.
+
+Punto delicato
+
+Questa riga implica che un buyer compra al massimo una volta in tutta la simulazione. È coerente con l’idea di acquisto di un’auto, meno con mercati ripetuti ad alta frequenza.
+
+⸻
+
+Matching casuale
+
+s = np.random.choice(self.sellers)
+
+Perché è scritta così
+
+È il matching più semplice possibile: ogni buyer vede un seller casuale.
+
+Punto delicato
+
+Non c’è search behavior. Il buyer non confronta venditori, non cerca qualità migliore, non minimizza il prezzo.
+
+Questa è una grossa semplificazione, ma anche ciò che rende il modello leggibile.
+
+Come potresti modificarla
+
+Potresti far vedere al buyer 2 o 3 sellers e fargli scegliere la migliore offerta. Sarebbe un upgrade naturale.
+
+⸻
+
+Verifica inventario
+
+if not s.inventory:
+    continue
+
+Perché è scritta così
+
+Se il venditore scelto non ha più auto, non c’è nulla da comprare.
+
+Punto delicato
+
+Il buyer in questo caso non prova un secondo seller nello stesso periodo. Anche questa è una scelta semplificante.
+
+⸻
+
+Estrazione dell’auto
+
+q = s.inventory.pop()
+
+Perché è scritta così
+
+pop() prende e rimuove un’auto dall’inventario.
+
+Punto delicato
+
+Prende l’ultimo elemento della lista, non uno casuale. Dato che l’inventario iniziale è random e non viene riordinato, non è un grosso problema, ma concettualmente non è la stessa cosa che scegliere un’auto casuale.
+
+Se vuoi essere più esplicito
+
+Potresti usare:
+
+idx = np.random.randint(len(s.inventory))
+q = s.inventory.pop(idx)
+
+Questo renderebbe l’estrazione chiaramente casuale.
+
+⸻
+
+Prezzo
+
+price = 80*q + np.random.uniform(0,40)
+
+Perché è scritta così
+
+La qualità entra linearmente e poi aggiungi un termine casuale.
+
+Punto delicato 1
+
+Il prezzo cresce con la qualità, ma non in modo perfettamente deterministico.
+
+Punto delicato 2
+
+Il termine casuale è sempre non negativo. Quindi introduce solo markup aggiuntivo, non sconti.
+
+Se vuoi una dispersione più simmetrica, useresti qualcosa centrato in zero, per esempio uniform(-20, 20).
+
+Interpretazione economica
+
+Così come è scritto, il buyer affronta una componente di incertezza o markup opportunistico.
+
+⸻
+
+Regola di acquisto
+
+if price <= b.budget and q >= b.min_quality*0.8:
+
+Perché è scritta così
+
+Combina due vincoli:
+	•	affordability,
+	•	accettabilità qualitativa.
+
+Punto delicato 1 — 0.8
+
+Quel coefficiente è una scorciatoia comportamentale importante: il buyer accetta una qualità inferiore alla sua soglia ideale.
+
+Punto delicato 2
+
+Non è un parametro in Params. Quindi è “hard-coded”.
+
+Se vuoi più trasparenza, dovresti metterlo in Params, per esempio:
+
+quality_tolerance: float = 0.8
+
+e poi usare:
+
+q >= b.min_quality * self.p.quality_tolerance
+
+
+⸻
+
+Se lo scambio avviene
+
+b.purchased = True
+trades += 1
+quality_sum += q
+if q < 0.4:
+    lemons += 1
+
+Perché è scritta così
+
+Aggiorna stato e statistiche minime.
+
+Punto delicato 1
+
+Il buyer non memorizza il prezzo pagato. Quindi non puoi ancora fare grafici sul surplus o sulla distribuzione dei prezzi.
+
+Punto delicato 2
+
+La definizione di lemon è fissa: q < 0.4. Anche questa soglia potrebbe essere messa in Params.
+
+⸻
+
+Registrazione storia
+
+self.history.append({
+    'period': t,
+    'trades': trades,
+    'avg_quality': quality_sum/trades if trades else 0,
+    'share_lemons': lemons/trades if trades else 0
+})
+
+Perché è scritta così
+
+Salvi una riga per periodo. È un pattern molto comune: accumuli dizionari e poi li converti in DataFrame.
+
+Punto delicato 1 — evitare NaN
+
+Usare if trades else 0 evita NaN quando non ci sono scambi.
+
+Punto delicato 2
+
+Mettere 0 quando non ci sono scambi è comodo, ma concettualmente non è la stessa cosa che “qualità media zero”. In un’analisi più fine, potresti preferire np.nan.
+
+Qui però la scelta di 0 ti evita problemi di plotting e paper.
+
+⸻
+
+Metodo run
+
+def run(self):
+    for t in range(self.p.periods):
+        self.step(t)
+    return pd.DataFrame(self.history)
+
+Perché è scritta così
+
+È minimale e leggibile.
+
+Punto delicato
+
+Non si ferma quando il mercato è esaurito. Quindi se tutti i buyers hanno già comprato o tutti i sellers hanno finito lo stock, continua comunque fino a periods.
+
+Non è grave, ma genera code piatte di zeri nelle serie.
+
+Come migliorarla
+
+Potresti inserire uno stop anticipato:
+
+if all(b.purchased for b in self.buyers):
+    break
+if all(len(s.inventory) == 0 for s in self.sellers):
+    break
+
+
+⸻
+
+Cella 7 — slider
+
+n_buyers = widgets.IntSlider(value=200, min=50, max=500, step=50)
+n_sellers = widgets.IntSlider(value=25, min=5, max=100, step=5)
+periods = widgets.IntSlider(value=52, min=10, max=200, step=10)
+
+display(n_buyers, n_sellers, periods)
+
+Perché è scritta così
+
+Gli slider sono separati e semplici.
+
+Punto delicato 1
+
+I nomi n_buyers, n_sellers, periods ora indicano widget, non numeri puri. Più avanti, devi usare .value.
+
+Punto delicato 2
+
+Non c’è un bottone “Run”. Devi rieseguire manualmente la cella successiva per usare i nuovi valori.
+
+Come potresti migliorarla
+
+Potresti usare widgets.interactive_output o un bottone Run simulation. Ma per ora la soluzione attuale è più facile da capire.
+
+⸻
+
+Cella 8 — costruzione parametri e run
+
+p = Params(n_buyers.value, n_sellers.value, periods.value)
+m = Market(p)
+df = m.run()
+
+years = p.periods/52
+print(f"Simulated {years:.2f} years")
+
+Perché è scritta così
+
+Prende i valori correnti dei widget, crea il modello, lo esegue.
+
+Punto delicato 1 — passaggio posizionale
+
+Come dicevo prima, è meglio usare nomi espliciti. Così:
+
+p = Params(
+    n_buyers=n_buyers.value,
+    n_sellers=n_sellers.value,
+    periods=periods.value
+)
+
+Punto delicato 2
+
+Ogni volta che esegui questa cella, rigeneri da zero buyers e sellers. Quindi non stai continuando la vecchia simulazione: stai creando un nuovo mondo.
+
+Questo è corretto per un notebook sperimentale.
+
+Punto delicato 3
+
+Il DataFrame df è sovrascritto ogni volta. Anche questo va bene, ma se vuoi confronti tra scenari, devi salvarli con nomi diversi.
+
+⸻
+
+Cella 9 — grafici
+
+fig, ax = plt.subplots()
+ax.plot(df['period'], df['avg_quality'])
+ax.set_title('Average quality over time')
+save_fig(fig, 'quality_over_time')
+plt.show()
+
+fig, ax = plt.subplots()
+ax.plot(df['period'], df['share_lemons'])
+ax.set_title('Share of lemons')
+save_fig(fig, 'lemons_share')
+plt.show()
+
+Perché è scritta così
+
+Un grafico per figura. È la scelta più pulita sia per Jupyter sia per il paper.
+
+Punto delicato 1
+
+Non imposti etichette degli assi. Funziona, ma per paper o presentazione sarebbe meglio aggiungere:
+
+ax.set_xlabel("Period")
+ax.set_ylabel("Average quality")
+
+e analogamente per l’altro grafico.
+
+Punto delicato 2
+
+Salvi prima di plt.show(), ed è giusto così. In certi ambienti, dopo show() lo stato della figura può cambiare.
+
+Punto delicato 3
+
+Stai sempre sovrascrivendo gli stessi file:
+	•	quality_over_time
+	•	lemons_share
+
+Questo è voluto, perché il paper usa quei nomi. Ma significa che se cambi slider e riesegui, sostituisci le figure precedenti.
+
+⸻
+
+Che cosa è scritto “bene” in questo notebook, dal punto di vista Python
+
+Ci sono alcune scelte buone che vale la pena fissare:
+
+1. separazione tra setup, modello, esecuzione, output
+
+Questo rende il notebook leggibile anche per altri.
+
+2. uso di classi semplici
+
+Hai oggetti chiari: Buyer, Seller, Market.
+
+3. funzione dedicata per esportare figure
+
+Ottima pratica.
+
+4. history come lista di dizionari
+
+È un pattern molto comodo per poi costruire DataFrame.
+
+5. Params come dataclass
+
+Molto ordinato.
+
+⸻
+
+I punti Python più delicati da capire bene
+
+A. list comprehension nel filtro istituzionale
+
+Questa riga:
+
+[q for q in s.inventory if not (...)]
+
+è elegante ma non immediata se non sei abituato.
+
+Significa: “tieni solo gli elementi che non soddisfano la condizione di rimozione”.
+
+B. differenza tra widget e valore del widget
+
+n_buyers è il widget.
+n_buyers.value è il numero scelto.
+
+C. fig.savefig vs plt.savefig
+
+Questo è un dettaglio tecnico ma importante.
+
+D. uso di continue
+
+Il flusso del metodo step() dipende molto da continue. Leggerlo bene è essenziale per capire chi viene saltato e quando.
+
+⸻
+
+Se volessi migliorarlo un poco, senza complicarlo troppo
+
+Ti suggerirei quattro micro-modifiche:
+
+1. seed fisso
+
+np.random.seed(42)
+
+2. nomi espliciti in Params
+
+p = Params(
+    n_buyers=n_buyers.value,
+    n_sellers=n_sellers.value,
+    periods=periods.value
+)
+
+3. etichette assi nei grafici
+
+ax.set_xlabel("Period (weeks)")
+ax.set_ylabel("Average quality")
+
+4. stop anticipato in run()
+
+per evitare code inutili di zeri.
+
+⸻
+
+In una frase: qual è la logica del notebook?
+
+Il notebook costruisce un mercato artificiale in cui agenti eterogenei interagiscono nel tempo sotto vincoli di budget, qualità e filtraggio istituzionale, e poi traduce gli esiti in serie storiche e figure immediatamente utilizzabili nel paper.
+
+⸻
+
+Se vuoi, nel prossimo messaggio posso fare un terzo passo ancora più utile: una spiegazione cella per cella ma in chiave economica, cioè per ogni cella ti dico quale ipotesi economica sta implementando.

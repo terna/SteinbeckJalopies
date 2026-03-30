@@ -1,0 +1,702 @@
+Volentieri. Adesso rileggo il notebook cella per cella in chiave economica: non tanto “che cosa fa il Python”, ma quale ipotesi economica o istituzionale sta mettendo nel modello.
+
+Questo è spesso il passaggio più importante, perché trasforma un notebook da semplice codice a modello interpretabile.
+
+⸻
+
+Cella 1 — Titolo e unità di tempo
+
+# Steinbeck Lemons ABM
+
+1 period = 1 market week
+
+Ipotesi economica implicita
+
+Stai assumendo che il mercato abbia una frequenza settimanale.
+
+Questo vuol dire che:
+	•	le decisioni di acquisto non sono continue;
+	•	gli scambi si aggregano in periodi discreti;
+	•	la dinamica del mercato può essere letta come evoluzione settimanale.
+
+Perché è importante
+
+In economia computazionale il tempo è spesso lasciato implicito. Qui invece gli dai un significato concreto. Questo consente di dire, ad esempio:
+	•	10 periodi = circa 2 mesi e mezzo,
+	•	52 periodi = circa 1 anno.
+
+Interpretazione concettuale
+
+Stai costruendo un mercato che si apre e si richiude ogni settimana, con nuove opportunità di ispezione e di scambio.
+
+⸻
+
+Cella 2 — Librerie
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from dataclasses import dataclass
+from pathlib import Path
+import ipywidgets as widgets
+from IPython.display import display
+
+Ipotesi economica implicita
+
+Qui non c’è ancora teoria economica, ma c’è una scelta metodologica: stai adottando una rappresentazione in cui il mercato viene osservato e studiato come sistema simulato, non risolto analiticamente in equilibrio chiuso.
+
+Significato metodologico
+
+L’uso congiunto di:
+	•	agenti individuali,
+	•	storia nel tempo,
+	•	grafici,
+	•	slider,
+
+implica un approccio computational / experimental: non cerchi subito una soluzione simbolica, ma fai emergere risultati dalle interazioni.
+
+In termini di paper
+
+Questa cella corrisponde alla scelta di un agent-based framework invece che di un modello puramente di equilibrio parziale.
+
+⸻
+
+Cella 3 — Cartella figure e funzione di salvataggio
+
+FIG_DIR = Path('./figures')
+FIG_DIR.mkdir(exist_ok=True)
+
+def save_fig(fig, name):
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / f"{name}.pdf")
+    fig.savefig(FIG_DIR / f"{name}.png", dpi=300)
+    print(f"Saved {name}")
+
+Ipotesi economica implicita
+
+Qui l’ipotesi non riguarda direttamente il mercato, ma il modo in cui i risultati economici vengono oggettivati.
+
+Che cosa significa
+
+Stai decidendo che gli esiti del modello devono essere:
+	•	persistenti,
+	•	riutilizzabili,
+	•	esportabili in un paper.
+
+In altre parole, il modello non è solo una simulazione “esplorativa”: è una macchina che produce evidenza riproducibile.
+
+Implicazione metodologica
+
+La figura economica non è un accessorio. È parte dell’argomentazione:
+	•	andamento della qualità media,
+	•	andamento della quota di lemons.
+
+Questo è tipico di un lavoro ABM serio: il grafico diventa analogo a una tabella o a una proposizione in un paper teorico.
+
+⸻
+
+Cella 4 — Classe Params
+
+@dataclass
+class Params:
+    n_buyers: int = 200
+    n_sellers: int = 25
+    periods: int = 52
+    institution_strength: float = 0.3
+    min_quality: float = 0.5
+
+Questa è una delle celle economicamente più dense, anche se sembra solo parametrica.
+
+⸻
+
+n_buyers
+
+Ipotesi economica
+
+Stai fissando la dimensione del lato domanda.
+
+Più buyers significano:
+	•	più pressione sul mercato,
+	•	più competizione tra compratori per un dato stock di auto,
+	•	maggiore probabilità che una parte della domanda resti insoddisfatta o accetti condizioni peggiori.
+
+Interpretazione
+
+Questo parametro controlla il “peso” della domanda, ma non ancora la sua composizione qualitativa.
+
+⸻
+
+n_sellers
+
+Ipotesi economica
+
+Stai fissando la capacità del lato offerta.
+
+Più sellers significano:
+	•	maggiore disponibilità di beni,
+	•	minore scarsità relativa,
+	•	possibilità di un mercato meno congestionato.
+
+Interpretazione
+
+Il rapporto tra n_buyers e n_sellers è già, implicitamente, una forma di struttura di mercato.
+
+⸻
+
+periods
+
+Ipotesi economica
+
+Stai fissando l’orizzonte temporale del processo.
+
+Questo conta perché il tuo mercato è a stock finito:
+	•	nel breve periodo osservi scambi iniziali,
+	•	nel medio periodo osservi esaurimento,
+	•	nel lungo periodo osservi la coda finale del mercato.
+
+Interpretazione
+
+Non è solo durata del calcolo. È una scelta sul tempo rilevante dell’analisi economica.
+
+⸻
+
+institution_strength
+
+Ipotesi economica
+
+Questo è il parametro che rappresenta la capacità effettiva delle istituzioni di filtrare il mercato.
+
+Più è alto, più frequentemente i beni scadenti vengono individuati e rimossi.
+
+Significato sostanziale
+
+Non stai modellando l’istituzione come ente astratto, ma come probabilità operativa di controllo.
+
+Questa è una scelta molto concreta e molto ABM-friendly.
+
+⸻
+
+min_quality
+
+Ipotesi economica
+
+Rappresenta lo standard minimo di qualità socialmente o istituzionalmente tollerato.
+
+Se un bene scende sotto questa soglia, non dovrebbe arrivare sul mercato.
+
+Interpretazione
+
+Questo parametro separa due concetti:
+	•	capacità dell’istituzione di controllare (institution_strength)
+	•	severità dello standard (min_quality)
+
+È una distinzione teoricamente importante.
+
+⸻
+
+Cella 5 — Buyer e Seller
+
+Parte Buyer
+
+self.budget = np.clip(np.random.normal(95, 20), 30, 190)
+self.min_quality = np.random.uniform(0.3, 0.7)
+self.purchased = False
+
+
+⸻
+
+budget
+
+Ipotesi economica
+
+I compratori sono eterogenei in capacità di spesa.
+
+Non hai un “consumatore rappresentativo”: hai una popolazione con distribuzione di reddito/budget.
+
+Significato economico
+
+Questo introduce un primo elemento fondamentale: la domanda non è omogenea. Alcuni compratori possono sostenere prezzi più alti, altri no.
+
+Collegamento alla teoria
+
+Questo allontana il modello dalla forma più semplice di Akerlof, in cui la domanda spesso viene sintetizzata in modo più aggregato.
+
+⸻
+
+min_quality
+
+Ipotesi economica
+
+I compratori sono anche eterogenei nelle preferenze/necessità qualitative.
+
+Non tutti vogliono la stessa cosa:
+	•	alcuni tollerano auto mediocri,
+	•	altri richiedono standard più elevati.
+
+Significato
+
+Hai introdotto una forma minima ma importante di eterogeneità delle preferenze.
+
+⸻
+
+purchased = False
+
+Ipotesi economica
+
+Ogni buyer ha un solo bisogno rilevante nel corso dell’orizzonte considerato: comprare un’auto una volta.
+
+Interpretazione
+
+Il mercato è trattato come mercato di beni durevoli o semi-durevoli, non di acquisti ripetuti ad alta frequenza.
+
+⸻
+
+Parte Seller
+
+self.inventory = list(np.random.uniform(0,1,8))
+
+Ipotesi economica
+
+Ogni venditore possiede uno stock iniziale finito di auto di qualità eterogenea.
+
+Significato economico
+
+Questo introduce tre idee:
+	•	l’offerta non è infinita;
+	•	la qualità è dispersa;
+	•	i venditori non producono durante la simulazione, ma smaltiscono stock.
+
+Interpretazione
+
+È più un modello di mercato di stock che di produzione continua.
+
+Questo è molto coerente con un mercato di usato.
+
+⸻
+
+Cella 6 — Classe Market
+
+Questa è la vera formalizzazione economica del notebook.
+
+⸻
+
+self.buyers = [...], self.sellers = [...]
+
+Ipotesi economica
+
+Il mercato parte con una popolazione fissata di compratori e venditori.
+
+Significato
+
+Non entrano nuovi soggetti nel tempo. Quindi il sistema è chiuso.
+
+Interpretazione
+
+Stai studiando l’evoluzione di un mercato dato, non di un’economia aperta con entrate e uscite continue.
+
+⸻
+
+Inizio di step()
+
+trades, quality_sum, lemons = 0, 0, 0
+
+Ipotesi economica
+
+Ogni periodo è osservato con statistiche aggregate minime:
+	•	numero di scambi,
+	•	qualità media dei beni scambiati,
+	•	quota di lemons.
+
+Significato
+
+Hai scelto tre variabili che rappresentano bene:
+	•	attività del mercato,
+	•	qualità del mercato,
+	•	deterioramento del mercato.
+
+Sono indicatori essenziali.
+
+⸻
+
+Blocco istituzionale
+
+for s in self.sellers:
+    s.inventory = [q for q in s.inventory if not (
+        np.random.rand() < self.p.institution_strength and q < self.p.min_quality
+    )]
+
+Ipotesi economica forte
+
+Le istituzioni agiscono prima dello scambio, sul lato dell’offerta.
+
+Significato
+
+Non influenzano direttamente:
+	•	il prezzo,
+	•	la preferenza del compratore,
+	•	il matching.
+
+Agiscono filtrando ciò che può legalmente o effettivamente arrivare sul mercato.
+
+Interpretazione
+
+È una visione dell’istituzione come meccanismo di selezione ex ante.
+
+Perché è importante
+
+Questa è una scelta teoricamente pulita: le istituzioni migliorano gli esiti non rendendo i compratori più informati, ma riducendo la presenza di beni pessimi.
+
+In termini economici, stanno modificando la distribuzione dell’offerta disponibile.
+
+⸻
+
+Matching buyer-seller
+
+s = np.random.choice(self.sellers)
+
+Ipotesi economica
+
+I compratori non osservano l’intero mercato e non ottimizzano globalmente. Incontrano un venditore in modo casuale.
+
+Significato
+
+Stai modellando un mercato con:
+	•	ricerca limitata,
+	•	informazione locale,
+	•	assenza di confronto generalizzato.
+
+Interpretazione
+
+Questo è molto realistico per mercati imperfetti o poco trasparenti.
+
+⸻
+
+Inventario vuoto
+
+if not s.inventory:
+    continue
+
+Ipotesi economica
+
+L’offerta disponibile è una vera scarsità, non una semplice curva continua. Se il venditore è senza stock, il match non produce nulla.
+
+Interpretazione
+
+Il lato offerta può diventare col tempo meno capace di assorbire la domanda.
+
+⸻
+
+Estrazione di un’auto
+
+q = s.inventory.pop()
+
+Ipotesi economica
+
+Ogni scambio consuma una unità di stock.
+
+Significato
+
+L’offerta si riduce nel tempo. Non hai replenishment, non hai produzione.
+
+Interpretazione
+
+Questo rende la simulazione dinamica anche senza apprendimento: il mercato cambia perché si svuotano gli inventari.
+
+⸻
+
+Prezzo
+
+price = 80*q + np.random.uniform(0,40)
+
+Ipotesi economica
+
+Il prezzo cresce con la qualità, ma contiene una componente discrezionale o casuale.
+
+Significato
+
+Il prezzo non è perfettamente disciplinato da qualità e concorrenza.
+
+Interpretazione
+
+Il termine casuale può essere letto come:
+	•	dispersione di prezzo,
+	•	markup opportunistico,
+	•	rumore contrattuale.
+
+Quindi il prezzo non è una semplice funzione “giusta” della qualità.
+
+⸻
+
+Condizione di acquisto
+
+if price <= b.budget and q >= b.min_quality*0.8:
+
+Qui ci sono due ipotesi economiche molto importanti.
+
+⸻
+
+Vincolo di budget
+
+Ipotesi
+
+Il compratore non può superare il suo vincolo di spesa.
+
+Significato
+
+Il mercato non è solo qualità, ma anche affordability.
+
+Interpretazione
+
+La disuguaglianza di budget entra direttamente nelle probabilità di scambio.
+
+⸻
+
+Vincolo di qualità con tolleranza
+
+Ipotesi
+
+Il compratore non richiede che l’auto soddisfi pienamente la sua soglia ideale, ma accetta fino al 20% in meno.
+
+Significato
+
+Qui stai introducendo una forma di domanda costretta o adattiva.
+
+Il buyer non è un ottimizzatore rigido; è disposto a scendere a compromessi.
+
+Interpretazione
+
+Questa è una scelta concettualmente ricca: permette al mercato di funzionare anche quando i beni non sono all’altezza dei desideri, ma solo “sufficientemente vicini”.
+
+⸻
+
+Se lo scambio avviene
+
+b.purchased = True
+trades += 1
+quality_sum += q
+if q < 0.4:
+    lemons += 1
+
+Ipotesi economica
+
+Una volta che il compratore acquista, esce dal mercato.
+
+Significato
+
+Il bisogno è stato soddisfatto, anche se magari in modo subottimale.
+
+Interpretazione
+
+Questo è coerente con acquisti di beni durevoli.
+
+⸻
+
+Definizione di lemon
+
+if q < 0.4:
+    lemons += 1
+
+Ipotesi economica
+
+Stai definendo operativamente cosa significa “bene scadente”.
+
+Significato
+
+La qualità continua viene ricondotta anche a una classificazione binaria utile per l’analisi:
+	•	sotto 0.4 = lemon
+	•	sopra = non lemon
+
+Interpretazione
+
+Questo è utile perché permette di leggere la degenerazione del mercato in modo intuitivo.
+
+⸻
+
+Registrazione storia
+
+self.history.append({
+    'period': t,
+    'trades': trades,
+    'avg_quality': quality_sum/trades if trades else 0,
+    'share_lemons': lemons/trades if trades else 0
+})
+
+Ipotesi economica
+
+L’analisi del mercato è fatta a livello macro, tramite indicatori aggregati per periodo.
+
+Significato
+
+Non stai guardando solo le singole transazioni, ma anche la traiettoria complessiva del mercato.
+
+Interpretazione
+
+Questo è un ponte tra microinterazioni e outcome macro, che è una delle ragioni principali per usare un ABM.
+
+⸻
+
+run()
+
+for t in range(self.p.periods):
+    self.step(t)
+return pd.DataFrame(self.history)
+
+Ipotesi economica
+
+Il mercato evolve nel tempo attraverso ripetizione della stessa struttura istituzionale e comportamentale.
+
+Significato
+
+Non cambiano regole, non cambiano preferenze, non cambiano istituzioni: ciò che cambia è lo stato del sistema.
+
+Interpretazione
+
+Questo è importante: i pattern emergono dalla dinamica, non da shock esterni.
+
+⸻
+
+Cella 7 — Slider
+
+n_buyers = widgets.IntSlider(value=200, min=50, max=500, step=50)
+n_sellers = widgets.IntSlider(value=25, min=5, max=100, step=5)
+periods = widgets.IntSlider(value=52, min=10, max=200, step=10)
+
+Ipotesi economica
+
+Questa cella non aggiunge teoria al modello, ma trasforma il notebook in uno strumento di esperimento comparato.
+
+Significato
+
+Puoi variare tre dimensioni strutturali:
+	•	ampiezza della domanda,
+	•	ampiezza dell’offerta,
+	•	orizzonte temporale.
+
+Interpretazione
+
+Stai trasformando il modello in un piccolo laboratorio di comparative statics computazionali.
+
+⸻
+
+Cella 8 — Creazione di Params, esecuzione del modello
+
+p = Params(n_buyers.value, n_sellers.value, periods.value)
+m = Market(p)
+df = m.run()
+
+years = p.periods/52
+print(f"Simulated {years:.2f} years")
+
+Ipotesi economica
+
+Qui concretizzi un esperimento particolare: scegli una struttura di mercato e la fai evolvere per un certo tempo.
+
+Significato
+
+Ogni esecuzione del notebook è un “mondo economico” definito da:
+	•	dimensione della popolazione,
+	•	numerosità dei sellers,
+	•	durata della vita del mercato.
+
+Interpretazione
+
+Questa cella è l’equivalente computazionale di dire, in un paper:
+
+“We simulate the model under the following parameterization…”
+
+⸻
+
+Cella 9 — Grafico della qualità media
+
+ax.plot(df['period'], df['avg_quality'])
+
+Ipotesi economica
+
+La qualità media delle auto effettivamente vendute è un indicatore sintetico dello stato del mercato.
+
+Significato
+
+Se la qualità media sale:
+	•	le istituzioni stanno probabilmente filtrando bene,
+	•	oppure le auto peggiori sono uscite,
+	•	oppure i buyers selezionano meglio.
+
+Se scende, il mercato si deteriora.
+
+Interpretazione
+
+Questo grafico è la misura più diretta della “salute qualitativa” del mercato.
+
+⸻
+
+Cella 10 — Grafico della quota di lemons
+
+ax.plot(df['period'], df['share_lemons'])
+
+Ipotesi economica
+
+La quota di lemons tra i beni venduti è una misura diretta della degenerazione del mercato.
+
+Significato
+
+È un indicatore molto vicino all’intuizione originaria di Akerlof: quando i lemons dominano, il mercato è qualitativamente compromesso.
+
+Interpretazione
+
+Questo grafico non dice solo se il mercato funziona, ma che tipo di beni circolano effettivamente.
+
+⸻
+
+Qual è, in sintesi, la teoria economica del notebook?
+
+Il notebook implementa questa visione:
+	1.	i compratori sono eterogenei in risorse e requisiti;
+	2.	i venditori dispongono di stock eterogenei di beni usati;
+	3.	il matching è imperfetto e locale;
+	4.	il prezzo è solo parzialmente disciplinato dalla qualità;
+	5.	le istituzioni filtrano ex ante i beni peggiori;
+	6.	gli esiti di mercato emergono nel tempo come combinazione di queste forze.
+
+⸻
+
+In che senso va oltre Akerlof, pur restando semplice?
+
+Akerlof mette al centro soprattutto informazione asimmetrica e adverse selection.
+
+Il tuo notebook, pur essendo semplice, introduce almeno tre dimensioni ulteriori:
+	•	eterogeneità di budget: non tutti possono permettersi le stesse auto;
+	•	tolleranza/adattamento del buyer: il compratore accetta compromessi;
+	•	istituzioni come filtro dell’offerta: il mercato non è lasciato completamente a se stesso.
+
+Quindi il collasso o il deterioramento del mercato non dipendono da un solo meccanismo.
+
+⸻
+
+Due ipotesi forti, economicamente importanti, che il notebook sta facendo
+
+1. Le istituzioni agiscono solo sull’offerta
+
+Non migliorano la conoscenza del buyer, ma eliminano alcuni beni.
+
+Questa è una scelta pulita, ma non l’unica possibile.
+
+2. I buyers non cercano attivamente il best deal
+
+Questo rende il mercato più opaco e locale di quanto farebbe un modello di ricerca esplicita.
+
+⸻
+
+Lettura finale: che storia economica racconta questo modello?
+
+Racconta un mercato di beni usati in cui:
+	•	i compratori arrivano con risorse limitate e richieste diverse,
+	•	i venditori dispongono di stock eterogenei,
+	•	non esiste trasparenza perfetta,
+	•	il mercato evolve settimana dopo settimana,
+	•	la qualità effettivamente scambiata dipende anche dal filtraggio istituzionale.
+
+In questo senso, il notebook non è solo “un esercizio di Python”: è già una piccola teoria computazionale del mercato.
+
+⸻
+
+Se vuoi, il passo successivo più utile è questo: posso prendere lo stesso notebook e scriverti una mappa “cella → paragrafo del paper”, cioè dirti quale cella giustifica quale parte del .tex.

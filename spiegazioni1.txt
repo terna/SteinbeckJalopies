@@ -1,0 +1,940 @@
+Certo. Ti spiego cella per cella il notebook steinbeck_lemons_abm.ipynb che abbiamo ricostruito da zero.
+
+Lo scopo generale del notebook è questo: costruire un piccolo agent-based model di un mercato di beni usati in cui compaiono:
+	•	compratori con budget e requisiti di qualità diversi,
+	•	venditori con inventari di auto di qualità eterogenea,
+	•	un meccanismo istituzionale che può eliminare dal mercato le auto troppo scadenti,
+	•	una dinamica nel tempo, dove 1 periodo = 1 settimana di mercato.
+
+⸻
+
+Cella 1 — Titolo e unità di tempo
+
+# Steinbeck Lemons ABM
+
+1 period = 1 market week
+
+Che cosa fa
+
+È una cella di testo. Non esegue codice, ma definisce subito il significato del notebook.
+
+Perché è importante
+
+Questa riga:
+
+1 period = 1 market week
+
+dà interpretazione economica al tempo della simulazione. Non stai facendo girare un modello con periodi astratti: stai dicendo che ogni step rappresenta una settimana di mercato.
+
+Implicazione pratica
+
+Se poi metti:
+	•	periods = 52 → circa un anno
+	•	periods = 26 → circa mezzo anno
+	•	periods = 104 → circa due anni
+
+Questa coerenza serve anche per il paper.
+
+⸻
+
+Cella 2 — Import delle librerie
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from dataclasses import dataclass
+from pathlib import Path
+import ipywidgets as widgets
+from IPython.display import display
+
+Che cosa fa
+
+Importa i moduli che servono al notebook.
+
+Riga per riga
+
+import numpy as np
+
+Serve per:
+	•	numeri casuali,
+	•	distribuzioni,
+	•	funzioni numeriche.
+
+Qui NumPy è fondamentale per generare:
+	•	budget dei compratori,
+	•	qualità delle auto,
+	•	eventi casuali come le ispezioni.
+
+⸻
+
+import pandas as pd
+
+Serve per creare tabelle di risultati.
+
+Nel notebook viene usato soprattutto per costruire il DataFrame finale della simulazione, cioè una tabella con:
+	•	periodo,
+	•	numero di scambi,
+	•	qualità media,
+	•	quota di lemons.
+
+⸻
+
+import matplotlib.pyplot as plt
+
+Serve per fare i grafici.
+
+Nel notebook produce le figure da salvare nella cartella figures/, che poi il file .tex userà nel paper.
+
+⸻
+
+from dataclasses import dataclass
+
+Serve per il decorator @dataclass, usato nella classe Params.
+
+L’idea è questa: Params è una classe che contiene parametri, non una logica complessa. @dataclass la rende molto più pulita.
+
+⸻
+
+from pathlib import Path
+
+Serve per lavorare con cartelle e file in modo ordinato.
+
+Qui è usato per creare automaticamente:
+
+Path('./figures')
+
+cioè la cartella in cui il notebook salva i grafici.
+
+⸻
+
+import ipywidgets as widgets
+
+Serve per gli slider interattivi.
+
+Grazie a questa libreria puoi modificare:
+	•	numero di buyers,
+	•	numero di sellers,
+	•	numero di periodi,
+
+senza cambiare a mano il codice.
+
+⸻
+
+from IPython.display import display
+
+Serve per mostrare gli slider nel notebook.
+
+⸻
+
+Cella 3 — Creazione della cartella figure e funzione di salvataggio
+
+# Figure folder
+FIG_DIR = Path('./figures')
+FIG_DIR.mkdir(exist_ok=True)
+
+def save_fig(fig, name):
+    fig.tight_layout()
+    fig.savefig(FIG_DIR / f"{name}.pdf")
+    fig.savefig(FIG_DIR / f"{name}.png", dpi=300)
+    print(f"Saved {name}")
+
+Che cosa fa
+
+Questa cella risolve un problema pratico molto importante: salvare i grafici in modo stabile.
+
+⸻
+
+Parte 1 — FIG_DIR = Path('./figures')
+
+Definisce la cartella figures come directory di output per le figure.
+
+⸻
+
+Parte 2 — FIG_DIR.mkdir(exist_ok=True)
+
+Crea la cartella figures se non esiste già.
+
+exist_ok=True significa: se la cartella esiste già, non dare errore.
+
+Questo evita uno dei problemi più comuni nei notebook: provare a salvare un grafico in una directory che non esiste.
+
+⸻
+
+Parte 3 — funzione save_fig(fig, name)
+
+fig.tight_layout()
+
+Sistema gli spazi del grafico:
+	•	titoli,
+	•	assi,
+	•	etichette.
+
+Evita che parti del grafico restino tagliate.
+
+⸻
+
+fig.savefig(FIG_DIR / f"{name}.pdf")
+
+Salva il grafico in PDF.
+
+Questo è utile per il paper LaTeX, perché il PDF è ottimo per grafici vettoriali.
+
+⸻
+
+fig.savefig(FIG_DIR / f"{name}.png", dpi=300)
+
+Salva anche il grafico in PNG ad alta risoluzione.
+
+Questo è utile:
+	•	per controllare visivamente che il grafico sia corretto,
+	•	per usare le figure anche fuori da LaTeX,
+	•	come backup se il PDF dà problemi.
+
+⸻
+
+print(f"Saved {name}")
+
+Stampa un messaggio per confermare il salvataggio.
+
+⸻
+
+Perché questa cella è cruciale
+
+Qui hai finalmente una pipeline robusta:
+	•	il notebook produce figure,
+	•	le salva in ./figures,
+	•	il paper le può includere con \graphicspath{{figures/}}.
+
+⸻
+
+Cella 4 — Classe Params
+
+@dataclass
+class Params:
+    n_buyers: int = 200
+    n_sellers: int = 25
+    periods: int = 52
+    institution_strength: float = 0.3
+    min_quality: float = 0.5
+
+Che cosa fa
+
+Definisce i parametri principali del modello.
+
+Questa è la “plancia di controllo” del simulatore.
+
+⸻
+
+Parametro per parametro
+
+n_buyers: int = 200
+
+Numero di compratori.
+
+Più è alto, maggiore è la pressione della domanda.
+
+⸻
+
+n_sellers: int = 25
+
+Numero di venditori.
+
+Più è alto, maggiore è la capacità del lato offerta.
+
+⸻
+
+periods: int = 52
+
+Numero di periodi simulati.
+
+Dato che 1 periodo = 1 settimana, 52 equivale a circa 1 anno.
+
+⸻
+
+institution_strength: float = 0.3
+
+Intensità dell’azione istituzionale.
+
+Qui è interpretata come probabilità che una singola auto venga ispezionata.
+
+Più è alto questo parametro, più facilmente le auto scadenti vengono eliminate.
+
+⸻
+
+min_quality: float = 0.5
+
+Soglia minima di qualità.
+
+Se un’auto ispezionata ha qualità sotto questa soglia, viene rimossa dal mercato.
+
+⸻
+
+Perché usare Params
+
+Invece di avere parametri sparsi nel codice, li raccogli tutti in un unico oggetto.
+
+Questo rende il modello:
+	•	più leggibile,
+	•	più facile da modificare,
+	•	più adatto a paper e replicazione.
+
+⸻
+
+Cella 5 — Classe Buyer e classe Seller
+
+class Buyer:
+    def __init__(self):
+        self.budget = np.clip(np.random.normal(95, 20), 30, 190)
+        self.min_quality = np.random.uniform(0.3, 0.7)
+        self.purchased = False
+
+class Seller:
+    def __init__(self):
+        self.inventory = list(np.random.uniform(0,1,8))
+
+Che cosa fa
+
+Definisce i due tipi di agenti del modello:
+	•	compratori,
+	•	venditori.
+
+⸻
+
+Parte A — classe Buyer
+
+self.budget = np.clip(np.random.normal(95, 20), 30, 190)
+
+Genera il budget del compratore.
+
+Significato statistico
+Prima estrae da una normale con:
+	•	media 95
+	•	deviazione standard 20
+
+Poi tronca il risultato tra 30 e 190.
+
+Significato economico
+I compratori non sono tutti uguali:
+	•	alcuni hanno budget basso,
+	•	altri budget alto.
+
+Ma eviti valori assurdi o negativi.
+
+⸻
+
+self.min_quality = np.random.uniform(0.3, 0.7)
+
+Ogni compratore ha una qualità minima accettabile diversa.
+
+Alcuni sono più esigenti, altri meno.
+
+Questa eterogeneità è importante: non tutti reagiscono allo stesso modo alle offerte.
+
+⸻
+
+self.purchased = False
+
+All’inizio nessun compratore ha ancora acquistato.
+
+Questo attributo serve a sapere chi è ancora attivo nel mercato.
+
+⸻
+
+Parte B — classe Seller
+
+self.inventory = list(np.random.uniform(0,1,8))
+
+Ogni venditore parte con un inventario di 8 auto.
+
+La qualità di ciascuna auto è estratta uniformemente tra 0 e 1.
+
+Interpretazione
+Nel modello:
+	•	0 = qualità pessima,
+	•	1 = qualità ottima.
+
+Quindi il venditore ha un piccolo stock di beni eterogenei.
+
+⸻
+
+Cella 6 — Classe Market
+
+class Market:
+    def __init__(self, p):
+        self.p = p
+        self.buyers = [Buyer() for _ in range(p.n_buyers)]
+        self.sellers = [Seller() for _ in range(p.n_sellers)]
+        self.history = []
+
+    def step(self, t):
+        trades, quality_sum, lemons = 0, 0, 0
+
+        # institutions: remove bad cars
+        for s in self.sellers:
+            s.inventory = [q for q in s.inventory if not (
+                np.random.rand() < self.p.institution_strength and q < self.p.min_quality
+            )]
+
+        for b in self.buyers:
+            if b.purchased:
+                continue
+            s = np.random.choice(self.sellers)
+            if not s.inventory:
+                continue
+
+            q = s.inventory.pop()
+            price = 80*q + np.random.uniform(0,40)
+
+            if price <= b.budget and q >= b.min_quality*0.8:
+                b.purchased = True
+                trades += 1
+                quality_sum += q
+                if q < 0.4:
+                    lemons += 1
+
+        self.history.append({
+            'period': t,
+            'trades': trades,
+            'avg_quality': quality_sum/trades if trades else 0,
+            'share_lemons': lemons/trades if trades else 0
+        })
+
+    def run(self):
+        for t in range(self.p.periods):
+            self.step(t)
+        return pd.DataFrame(self.history)
+
+Questa è la cella centrale del notebook. Qui c’è il vero ABM.
+
+⸻
+
+__init__(self, p)
+
+self.p = p
+
+Memorizza i parametri del modello.
+
+⸻
+
+self.buyers = [Buyer() for _ in range(p.n_buyers)]
+
+Crea la lista di tutti i compratori.
+
+⸻
+
+self.sellers = [Seller() for _ in range(p.n_sellers)]
+
+Crea la lista di tutti i venditori.
+
+⸻
+
+self.history = []
+
+Prepara una lista vuota in cui registrare i risultati periodo per periodo.
+
+⸻
+
+Metodo step(self, t)
+
+Questa funzione rappresenta una settimana di mercato.
+
+Ogni volta che la chiami, il modello compie un passo temporale.
+
+⸻
+
+trades, quality_sum, lemons = 0, 0, 0
+
+Inizializza le statistiche del periodo:
+	•	trades = numero di scambi,
+	•	quality_sum = somma della qualità delle auto vendute,
+	•	lemons = numero di auto molto scadenti vendute.
+
+⸻
+
+Blocco istituzionale
+
+for s in self.sellers:
+    s.inventory = [q for q in s.inventory if not (
+        np.random.rand() < self.p.institution_strength and q < self.p.min_quality
+    )]
+
+Che cosa fa
+
+Per ogni venditore, guarda il suo inventario e rimuove alcune auto di bassa qualità.
+
+Come funziona
+
+Per ogni auto:
+	•	si genera un numero casuale,
+	•	se quell’auto viene “ispezionata” con probabilità institution_strength,
+	•	e se la sua qualità è sotto min_quality,
+	•	allora l’auto viene eliminata.
+
+Significato economico
+
+Le istituzioni non controllano tutto con certezza. Agiscono in modo probabilistico.
+
+Questo è realistico: non tutte le auto vengono controllate, ma più forte è l’istituzione, maggiore è il filtraggio.
+
+⸻
+
+Blocco di mercato: interazione buyer-seller
+
+for b in self.buyers:
+    if b.purchased:
+        continue
+
+Se il compratore ha già comprato in un periodo precedente, viene saltato.
+
+Quindi ogni buyer compra al massimo una volta.
+
+⸻
+
+s = np.random.choice(self.sellers)
+
+Il compratore viene accoppiato casualmente a un venditore.
+
+Non c’è ancora una strategia sofisticata di ricerca: è un matching semplice e casuale.
+
+⸻
+
+if not s.inventory: continue
+
+Se quel venditore ha esaurito le auto, il compratore non compra da lui.
+
+⸻
+
+q = s.inventory.pop()
+
+Il venditore offre una delle auto nel suo inventario.
+
+pop() rimuove quell’auto dallo stock.
+
+Quindi l’inventario è finito: il mercato ha una dinamica di esaurimento.
+
+⸻
+
+price = 80*q + np.random.uniform(0,40)
+
+Definisce il prezzo.
+
+Il prezzo ha due componenti:
+	•	una parte proporzionale alla qualità, 80*q,
+	•	una parte casuale, uniform(0,40).
+
+Interpretazione
+
+Auto migliori costano in media di più, ma c’è anche dispersione di prezzo.
+
+Questo termine casuale introduce rumore e variabilità.
+
+⸻
+
+Regola di acquisto
+
+if price <= b.budget and q >= b.min_quality*0.8:
+
+La vendita avviene solo se valgono entrambe le condizioni.
+
+Condizione 1 — price <= b.budget
+
+Il compratore può permettersi l’auto.
+
+⸻
+
+Condizione 2 — q >= b.min_quality*0.8
+
+La qualità dell’auto deve essere almeno l’80% della soglia desiderata dal compratore.
+
+Perché *0.8
+
+Qui hai una forma semplice di domanda costretta o adattamento.
+
+Il buyer non pretende esattamente la sua soglia ideale, ma può accettare qualcosa di leggermente peggiore.
+
+⸻
+
+Se lo scambio avviene
+
+b.purchased = True
+trades += 1
+quality_sum += q
+if q < 0.4:
+    lemons += 1
+
+b.purchased = True
+
+Il compratore esce dal mercato.
+
+⸻
+
+trades += 1
+
+Aumenta il numero di transazioni del periodo.
+
+⸻
+
+quality_sum += q
+
+Serve per calcolare la qualità media delle auto vendute.
+
+⸻
+
+if q < 0.4: lemons += 1
+
+Definisce un “lemon” come un’auto con qualità inferiore a 0.4.
+
+È una soglia convenzionale, ma utile per monitorare quante auto scadenti circolano.
+
+⸻
+
+Registrazione dei risultati del periodo
+
+self.history.append({
+    'period': t,
+    'trades': trades,
+    'avg_quality': quality_sum/trades if trades else 0,
+    'share_lemons': lemons/trades if trades else 0
+})
+
+Questa parte salva le statistiche del periodo t.
+
+period
+
+Indice temporale.
+
+⸻
+
+trades
+
+Numero di scambi effettuati in quella settimana.
+
+⸻
+
+avg_quality
+
+Qualità media delle auto vendute.
+
+Se non ci sono scambi, mette 0 invece di NaN.
+
+⸻
+
+share_lemons
+
+Quota di lemons tra le auto vendute.
+
+Anche qui, se non ci sono scambi, mette 0.
+
+⸻
+
+Metodo run(self)
+
+for t in range(self.p.periods):
+    self.step(t)
+return pd.DataFrame(self.history)
+
+Che cosa fa
+
+Esegue la simulazione per tutti i periodi.
+
+Alla fine restituisce un DataFrame Pandas con tutta la storia.
+
+Perché è utile
+
+Così i risultati della simulazione sono subito pronti per:
+	•	analisi,
+	•	grafici,
+	•	esportazione.
+
+⸻
+
+Cella 7 — Slider
+
+# sliders
+n_buyers = widgets.IntSlider(value=200, min=50, max=500, step=50)
+n_sellers = widgets.IntSlider(value=25, min=5, max=100, step=5)
+periods = widgets.IntSlider(value=52, min=10, max=200, step=10)
+
+display(n_buyers, n_sellers, periods)
+
+Che cosa fa
+
+Crea tre slider interattivi.
+
+⸻
+
+n_buyers
+
+Permette di cambiare il numero di compratori.
+
+Intervallo: da 50 a 500.
+
+⸻
+
+n_sellers
+
+Permette di cambiare il numero di venditori.
+
+Intervallo: da 5 a 100.
+
+⸻
+
+periods
+
+Permette di cambiare la durata della simulazione.
+
+Intervallo: da 10 a 200 settimane.
+
+⸻
+
+Perché è utile
+
+Trasforma il notebook in un piccolo laboratorio sperimentale.
+
+Puoi vedere come cambia il mercato se:
+	•	aumenti la domanda,
+	•	aumenti l’offerta,
+	•	allunghi la durata.
+
+⸻
+
+Cella 8 — Costruzione dei parametri, esecuzione della simulazione
+
+p = Params(n_buyers.value, n_sellers.value, periods.value)
+m = Market(p)
+df = m.run()
+
+years = p.periods/52
+print(f"Simulated {years:.2f} years")
+
+Che cosa fa
+
+Questa cella prende i valori scelti dagli slider e lancia la simulazione.
+
+⸻
+
+p = Params(...)
+
+Crea l’oggetto dei parametri usando i valori correnti degli slider.
+
+Quindi gli slider entrano davvero nel modello.
+
+⸻
+
+m = Market(p)
+
+Crea il mercato con quei parametri.
+
+⸻
+
+df = m.run()
+
+Esegue tutta la simulazione e salva i risultati in una tabella.
+
+⸻
+
+years = p.periods/52
+
+Converte il numero di settimane in anni.
+
+Questo è importante perché rende leggibile la durata della simulazione.
+
+⸻
+
+print(f"Simulated {years:.2f} years")
+
+Stampa per esempio:
+	•	Simulated 1.00 years
+	•	Simulated 2.00 years
+
+⸻
+
+Cella 9 — Grafici ed esportazione
+
+fig, ax = plt.subplots()
+ax.plot(df['period'], df['avg_quality'])
+ax.set_title('Average quality over time')
+save_fig(fig, 'quality_over_time')
+plt.show()
+
+fig, ax = plt.subplots()
+ax.plot(df['period'], df['share_lemons'])
+ax.set_title('Share of lemons')
+save_fig(fig, 'lemons_share')
+plt.show()
+
+Che cosa fa
+
+Produce i grafici finali e li salva nella cartella figures.
+
+⸻
+
+Primo grafico — qualità media nel tempo
+
+fig, ax = plt.subplots()
+
+Crea una nuova figura e un asse.
+
+È importante farlo così, perché poi salvi la figura corretta con save_fig(fig, ...).
+
+⸻
+
+ax.plot(df['period'], df['avg_quality'])
+
+Disegna la serie temporale della qualità media.
+
+Sull’asse orizzontale hai il tempo, su quello verticale la qualità media delle auto vendute.
+
+⸻
+
+ax.set_title('Average quality over time')
+
+Imposta il titolo del grafico.
+
+⸻
+
+save_fig(fig, 'quality_over_time')
+
+Salva il grafico come:
+	•	figures/quality_over_time.pdf
+	•	figures/quality_over_time.png
+
+Questo nome è esattamente quello usato anche nel paper.
+
+⸻
+
+plt.show()
+
+Mostra il grafico nel notebook.
+
+⸻
+
+Secondo grafico — quota di lemons
+
+ax.plot(df['period'], df['share_lemons'])
+
+Disegna la quota di auto scadenti nel tempo.
+
+Questo è un indicatore cruciale: ti dice se il mercato è dominato da beni pessimi o no.
+
+⸻
+
+save_fig(fig, 'lemons_share')
+
+Salva il grafico come:
+	•	figures/lemons_share.pdf
+	•	figures/lemons_share.png
+
+Anche questo nome è coerente con il file .tex.
+
+⸻
+
+Lettura concettuale del notebook nel suo insieme
+
+Il notebook ha una struttura molto pulita:
+
+1. definisce il contesto
+
+titolo, tempo, scopo
+
+2. importa gli strumenti
+
+NumPy, Pandas, Matplotlib, widgets
+
+3. prepara output robusti
+
+cartella figures, funzione save_fig
+
+4. definisce i parametri
+
+classe Params
+
+5. definisce gli agenti
+
+buyers e sellers
+
+6. definisce il mercato
+
+matching, ispezioni, regole di acquisto, storia dei risultati
+
+7. permette esperimenti
+
+slider
+
+8. esegue il modello
+
+simulazione
+
+9. produce output leggibili
+
+grafici + salvataggio figure
+
+⸻
+
+Quali sono i punti più importanti da capire bene
+
+A. Il modello è stock-flow molto semplice
+	•	i sellers hanno un inventario finito,
+	•	i buyers comprano una volta sola,
+	•	il mercato si svuota nel tempo.
+
+Questa è una scelta semplice ma chiara.
+
+⸻
+
+B. Le istituzioni agiscono prima dello scambio
+
+Non correggono il prezzo dopo, ma filtrano l’offerta prima che il mercato si incontri.
+
+Questa è una scelta forte e pulita.
+
+⸻
+
+C. Il prezzo dipende dalla qualità ma non solo
+
+La parte casuale uniform(0,40) introduce dispersione.
+
+Quindi non c’è una relazione meccanica uno-a-uno tra qualità e prezzo.
+
+⸻
+
+D. La domanda non è rigidissima
+
+Il compratore accetta qualità almeno pari all’80% della sua soglia desiderata.
+
+Questo rende il comportamento più realistico: non sempre si compra solo il bene ideale.
+
+⸻
+
+Due limiti attuali del notebook
+
+Te li segnalo perché aiutano a leggere bene il modello.
+
+1. Non c’è apprendimento
+
+I compratori non imparano dall’esperienza, i venditori non cambiano strategia.
+
+2. Il matching è casuale
+
+I compratori non cercano attivamente il venditore migliore.
+
+Questi non sono errori: sono semplificazioni.
+
+⸻
+
+Una piccola correzione utile che ti consiglio
+
+All’inizio del notebook, in una cella di setup, aggiungerei:
+
+np.random.seed(42)
+
+Così il modello diventa replicabile.
+
+⸻
+
+Se vuoi, nel prossimo messaggio posso fare anche una seconda spiegazione:
+
+una versione ancora più didattica, in cui per ogni cella ti dico non solo “che cosa fa”, ma anche:
+	•	perché è scritta così in Python,
+	•	quali sono i punti tecnicamente più delicati,
+	•	come potresti modificarla.
